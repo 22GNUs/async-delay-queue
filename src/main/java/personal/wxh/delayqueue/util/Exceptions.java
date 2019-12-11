@@ -1,8 +1,7 @@
 package personal.wxh.delayqueue.util;
 
-import lombok.NonNull;
-
 import java.util.function.Supplier;
+import lombok.NonNull;
 
 /**
  * @author wangxinhua

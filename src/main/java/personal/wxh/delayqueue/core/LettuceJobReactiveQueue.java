@@ -1,10 +1,13 @@
 package personal.wxh.delayqueue.core;
 
+import static personal.wxh.delayqueue.util.Exceptions.checked;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
+import java.util.ArrayList;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -12,18 +15,17 @@ import personal.wxh.delayqueue.util.ScriptLoader;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-
-import static personal.wxh.delayqueue.util.Exceptions.checked;
-
 /**
+ * TODO 提供一个queue没有写入另一个队列的副作用
+ *
  * @author wangxinhua
  * @since 1.0
  */
 @Slf4j
-public class LettuceReactiveQueue<T> implements DelayQueue<T> {
+public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
 
   private final String key;
+  private final String jobListKey;
 
   private final Class<T> clazz;
 
@@ -40,23 +42,26 @@ public class LettuceReactiveQueue<T> implements DelayQueue<T> {
   private final ObjectMapper objectMapper;
 
   @SuppressWarnings("unchecked")
-  public LettuceReactiveQueue(String key, RedisClient redisClient) {
-    this(key, (Class<T>) Object.class, redisClient);
+  public LettuceJobReactiveQueue(String key, String jobListKey, RedisClient redisClient) {
+    this(key, jobListKey, (Class<T>) Object.class, redisClient);
   }
 
-  public LettuceReactiveQueue(String key, Class<T> clazz, RedisClient redisClient) {
-    this(key, clazz, redisClient, new ObjectMapper());
+  public LettuceJobReactiveQueue(
+      String key, String jobListKey, Class<T> clazz, RedisClient redisClient) {
+    this(key, jobListKey, clazz, redisClient, new ObjectMapper());
   }
 
-  public LettuceReactiveQueue(
+  public LettuceJobReactiveQueue(
       @NonNull String key,
+      String jobListKey,
       @NonNull Class<T> clazz,
       @NonNull RedisClient redisClient,
       @NonNull ObjectMapper objectMapper) {
     this.key = key;
+    this.jobListKey = jobListKey;
     // 考虑loadScript公用一个连接
-    this.dequeueDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue.lua");
-    this.dequeueBatchDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-batch.lua");
+    this.dequeueDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-trans.lua");
+    this.dequeueBatchDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-trans-batch.lua");
     this.commands = redisClient.connect().reactive();
     this.objectMapper = objectMapper;
     // 写入类型信息
@@ -76,7 +81,11 @@ public class LettuceReactiveQueue<T> implements DelayQueue<T> {
   public Mono<T> dequeue(long max) {
     return commands
         .<String>evalsha(
-            dequeueDigest, ScriptOutputType.VALUE, new String[] {key}, String.valueOf(max))
+            dequeueDigest,
+            ScriptOutputType.VALUE,
+            new String[] {key},
+            String.valueOf(max),
+            jobListKey)
         .last()
         // 考虑处理json解析异常
         .flatMap(this::readValue);
@@ -102,7 +111,8 @@ public class LettuceReactiveQueue<T> implements DelayQueue<T> {
             String.valueOf(min),
             String.valueOf(max),
             String.valueOf(offset),
-            String.valueOf(limit))
+            String.valueOf(limit),
+            jobListKey)
         .flatMap(Flux::fromIterable)
         .flatMap(this::readValue);
   }
@@ -110,6 +120,24 @@ public class LettuceReactiveQueue<T> implements DelayQueue<T> {
   @Override
   public Mono<Long> delete() {
     return commands.del(key);
+  }
+
+  /**
+   * 清空任务队列
+   *
+   * @return Mono<Long>
+   */
+  public Mono<Long> deleteJobList() {
+    return commands.del(jobListKey);
+  }
+
+  /**
+   * 清空所有队列数据
+   *
+   * @return Mono<Long>
+   */
+  public Mono<Long> clearAll() {
+    return delete().flatMap(d1 -> deleteJobList().map(d2 -> d1 == 1L && d2 == 1L ? 1L : 0L));
   }
 
   private Mono<T> readValue(String json) {

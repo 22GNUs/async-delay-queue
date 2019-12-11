@@ -1,5 +1,6 @@
 package personal.wxh.delayqueue.core;
 
+import java.util.ArrayList;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.junit.Assert;
@@ -10,23 +11,21 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.util.ArrayList;
-
 /**
  * @author wangxinhua
  * @since 1.0
  */
 @Slf4j
-public class LettuceReactiveQueueTest extends RedisTest {
+public class LettuceJobReactiveQueueTest extends RedisTest {
 
-  private LettuceReactiveQueue<Object> testQueue;
+  private LettuceJobReactiveQueue<Object> testQueue;
 
   @Before
   @Override
   public void init() {
     // call super first
     super.init();
-    this.testQueue = new LettuceReactiveQueue<>("testQueue", client);
+    this.testQueue = new LettuceJobReactiveQueue<>("testQueue", "testJobQueue", client);
   }
 
   @Test
@@ -41,7 +40,7 @@ public class LettuceReactiveQueueTest extends RedisTest {
         .recordWith(ArrayList::new)
         .expectNextCount(10)
         .consumeRecordedWith(ret -> log.info("enqueue ret -> {}", ret))
-        .then(testQueue::delete)
+        .then(testQueue::clearAll)
         .verifyComplete();
   }
 
@@ -59,6 +58,7 @@ public class LettuceReactiveQueueTest extends RedisTest {
               Assert.assertNotNull(message);
               log.info("dequeue message -> {}", message);
             })
+        .then(testQueue::clearAll)
         .verifyComplete();
   }
 
@@ -79,6 +79,7 @@ public class LettuceReactiveQueueTest extends RedisTest {
         .recordWith(ArrayList::new)
         .expectNextCount(number)
         .consumeRecordedWith(ret -> log.info("dequeue batch -> {}", ret))
+        .then(testQueue::clearAll)
         .verifyComplete();
   }
 }

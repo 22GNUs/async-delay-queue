@@ -1,8 +1,7 @@
 package personal.wxh.delayqueue.core;
 
-import lombok.*;
-
 import java.io.Serializable;
+import lombok.*;
 
 /**
  * 消息对象
