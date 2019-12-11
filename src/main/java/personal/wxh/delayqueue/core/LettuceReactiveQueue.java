@@ -49,7 +49,10 @@ public class LettuceReactiveQueue<T> implements DelayQueue<T> {
   }
 
   public LettuceReactiveQueue(
-      String key, Class<T> clazz, RedisClient redisClient, ObjectMapper objectMapper) {
+      @NonNull String key,
+      @NonNull Class<T> clazz,
+      @NonNull RedisClient redisClient,
+      @NonNull ObjectMapper objectMapper) {
     this.key = key;
     // 考虑loadScript公用一个连接
     this.dequeueDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue.lua");
