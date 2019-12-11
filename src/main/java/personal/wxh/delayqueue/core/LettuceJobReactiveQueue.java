@@ -136,8 +136,12 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
    *
    * @return Mono<Long>
    */
-  public Mono<Long> clearAll() {
-    return delete().flatMap(d1 -> deleteJobList().map(d2 -> d1 == 1L && d2 == 1L ? 1L : 0L));
+  public Mono<Boolean> clearAll() {
+    return delete().flatMap(d1 -> deleteJobList().map(d2 -> d1 > 0 && d2 > 0));
+  }
+
+  public boolean blockClearAll() {
+    return clearAll().blockOptional().orElse(false);
   }
 
   private Mono<T> readValue(String json) {

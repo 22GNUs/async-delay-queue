@@ -40,7 +40,7 @@ public class LettuceJobReactiveQueueTest extends RedisTest {
         .recordWith(ArrayList::new)
         .expectNextCount(10)
         .consumeRecordedWith(ret -> log.info("enqueue ret -> {}", ret))
-        .then(testQueue::clearAll)
+        .then(testQueue::blockClearAll)
         .verifyComplete();
   }
 
@@ -58,7 +58,7 @@ public class LettuceJobReactiveQueueTest extends RedisTest {
               Assert.assertNotNull(message);
               log.info("dequeue message -> {}", message);
             })
-        .then(testQueue::clearAll)
+        .then(testQueue::blockClearAll)
         .verifyComplete();
   }
 
@@ -79,7 +79,7 @@ public class LettuceJobReactiveQueueTest extends RedisTest {
         .recordWith(ArrayList::new)
         .expectNextCount(number)
         .consumeRecordedWith(ret -> log.info("dequeue batch -> {}", ret))
-        .then(testQueue::clearAll)
+        .then(testQueue::blockClearAll)
         .verifyComplete();
   }
 }
