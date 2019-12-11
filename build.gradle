@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'com.diffplug.gradle.spotless' version '3.23.0'
+}
+
+group 'personal.wxh'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+ext {
+    slf4jVersion = '1.7.25'
+    lombok = 'org.projectlombok:lombok:1.18.10'
+    lettuce = 'io.lettuce:lettuce-core:5.2.0.RELEASE'
+    jackSonAnnotations = "com.fasterxml.jackson.core:jackson-annotations:2.10.0"
+    jackSonDatabind = "com.fasterxml.jackson.core:jackson-databind:2.10.0"
+}
+
+jar {
+    excludes = ['**/rebel.xml', '**/.keep']
+}
+
+[compileJava, compileTestJava, javadoc]*.options*.encoding = 'UTF-8'
+
+spotless {
+    java {
+        googleJavaFormat()
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    annotationProcessor lombok
+    testAnnotationProcessor lombok
+    compileOnly lombok
+    testCompileOnly lombok
+    implementation lettuce
+
+    compile jackSonAnnotations
+    compile jackSonDatabind
+    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+    testImplementation "org.slf4j:slf4j-simple:${slf4jVersion}"
+    testImplementation 'junit:junit:4.12'
+    // https://mvnrepository.com/artifact/io.projectreactor/reactor-test
+    testCompile group: 'io.projectreactor', name: 'reactor-test', version: '3.3.1.RELEASE'
+}
