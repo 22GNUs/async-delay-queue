@@ -4,14 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.junit.Assert;
 import org.junit.Test;
-import personal.wxh.delayqueue.RedisTest;
+import personal.wxh.delayqueue.BaseRedisTest;
 
 /**
  * @author wangxinhua
  * @since 1.0
  */
 @Slf4j
-public class ScriptLoaderRedisTest extends RedisTest {
+public class ScriptLoaderBaseRedisTest extends BaseRedisTest {
 
   @Test
   public void loadScript() {

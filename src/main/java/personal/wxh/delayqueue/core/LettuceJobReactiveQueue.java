@@ -2,21 +2,24 @@ package personal.wxh.delayqueue.core;
 
 import static personal.wxh.delayqueue.util.Exceptions.checked;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import java.util.ArrayList;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import personal.wxh.delayqueue.util.GlobalObjectMapper;
 import personal.wxh.delayqueue.util.ScriptLoader;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * TODO 提供一个queue没有写入另一个队列的副作用
+ * TODO 提供一个queue没有写入另一个队列的副作用 通过lua脚本实现的延迟队列
+ *
+ * <p>队列dequeue时会向 {@code jobQueueKey} 通过RPUSH写入数据</>
  *
  * @author wangxinhua
  * @since 1.0
@@ -24,8 +27,9 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
 
-  private final String key;
-  private final String jobListKey;
+  @Getter private final String key;
+
+  @Getter private final String jobQueueKey;
 
   private final Class<T> clazz;
 
@@ -42,33 +46,23 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
   private final ObjectMapper objectMapper;
 
   @SuppressWarnings("unchecked")
-  public LettuceJobReactiveQueue(String key, String jobListKey, RedisClient redisClient) {
-    this(key, jobListKey, (Class<T>) Object.class, redisClient);
-  }
-
-  public LettuceJobReactiveQueue(
-      String key, String jobListKey, Class<T> clazz, RedisClient redisClient) {
-    this(key, jobListKey, clazz, redisClient, new ObjectMapper());
+  public LettuceJobReactiveQueue(String key, String jobQueueKey, RedisClient redisClient) {
+    this(key, jobQueueKey, (Class<T>) Object.class, redisClient);
   }
 
   public LettuceJobReactiveQueue(
       @NonNull String key,
-      String jobListKey,
+      String jobQueueKey,
       @NonNull Class<T> clazz,
-      @NonNull RedisClient redisClient,
-      @NonNull ObjectMapper objectMapper) {
+      @NonNull RedisClient redisClient) {
     this.key = key;
-    this.jobListKey = jobListKey;
+    this.jobQueueKey = jobQueueKey;
     // 考虑loadScript公用一个连接
     this.dequeueDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-trans.lua");
     this.dequeueBatchDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-trans-batch.lua");
     this.commands = redisClient.connect().reactive();
-    this.objectMapper = objectMapper;
-    // 写入类型信息
-    objectMapper.activateDefaultTypingAsProperty(
-        objectMapper.getPolymorphicTypeValidator(), ObjectMapper.DefaultTyping.NON_FINAL, "@class");
-    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     this.clazz = clazz;
+    this.objectMapper = GlobalObjectMapper.getInstance();
   }
 
   @Override
@@ -85,7 +79,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
             ScriptOutputType.VALUE,
             new String[] {key},
             String.valueOf(max),
-            jobListKey)
+            jobQueueKey)
         .last()
         // 考虑处理json解析异常
         .flatMap(this::readValue);
@@ -112,7 +106,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
             String.valueOf(max),
             String.valueOf(offset),
             String.valueOf(limit),
-            jobListKey)
+            jobQueueKey)
         .flatMap(Flux::fromIterable)
         .flatMap(this::readValue);
   }
@@ -128,7 +122,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
    * @return Mono<Long>
    */
   public Mono<Long> deleteJobList() {
-    return commands.del(jobListKey);
+    return commands.del(jobQueueKey);
   }
 
   /**

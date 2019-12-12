@@ -8,7 +8,7 @@ import org.junit.Before;
  * @author wangxinhua
  * @since 1.0
  */
-public abstract class RedisTest {
+public abstract class BaseRedisTest {
   protected RedisClient client;
 
   @Before

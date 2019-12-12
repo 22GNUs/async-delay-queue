@@ -6,7 +6,7 @@ import lombok.val;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import personal.wxh.delayqueue.RedisTest;
+import personal.wxh.delayqueue.BaseRedisTest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -16,7 +16,7 @@ import reactor.test.StepVerifier;
  * @since 1.0
  */
 @Slf4j
-public class LettuceJobReactiveQueueTest extends RedisTest {
+public class LettuceJobReactiveQueueTestBase extends BaseRedisTest {
 
   private LettuceJobReactiveQueue<Object> testQueue;
 

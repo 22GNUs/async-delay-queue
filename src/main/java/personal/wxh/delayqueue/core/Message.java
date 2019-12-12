@@ -28,6 +28,17 @@ public class Message<T> {
   }
 
   /**
+   * 用当前时间作为score | 构造一个不包含body的message对象
+   *
+   * @param id 唯一id
+   * @param <T> 泛型类型, ignored
+   * @return 空的message
+   */
+  public static <T> Message<T> ofNow(Serializable id) {
+    return new Message<>(id, System.currentTimeMillis());
+  }
+
+  /**
    * 构造一个包含body的message对象
    *
    * @param id 唯一id
