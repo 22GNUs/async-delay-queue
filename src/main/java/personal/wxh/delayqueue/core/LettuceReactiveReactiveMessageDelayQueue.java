@@ -10,7 +10,7 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import personal.wxh.delayqueue.util.GlobalObjectMapper;
-import personal.wxh.delayqueue.util.ReactiveJsonFormatter;
+import personal.wxh.delayqueue.util.ReactiveMessageJsonFormatter;
 import personal.wxh.delayqueue.util.ScriptLoader;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,8 +24,8 @@ import reactor.core.publisher.Mono;
  * @since 1.0
  */
 @Slf4j
-public class LettuceReactiveReactiveDelayQueue<T>
-    implements ReactiveDelayQueue<T>, ReactiveJsonFormatter<T> {
+public class LettuceReactiveReactiveMessageDelayQueue<T>
+    implements ReactiveDelayQueue<T>, ReactiveMessageJsonFormatter<T> {
 
   @Getter private final String key;
 
@@ -55,7 +55,7 @@ public class LettuceReactiveReactiveDelayQueue<T>
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static LettuceReactiveReactiveDelayQueue<Object> connect(
+  public static LettuceReactiveReactiveMessageDelayQueue<Object> connect(
       @NonNull String key, String jobQueueKey, @NonNull RedisClient redisClient) {
     return connect(key, jobQueueKey, Object.class, redisClient);
   }
@@ -69,7 +69,7 @@ public class LettuceReactiveReactiveDelayQueue<T>
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveDelayQueue<T> connect(
+  public static <T> LettuceReactiveReactiveMessageDelayQueue<T> connect(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> metaClazz,
@@ -77,7 +77,7 @@ public class LettuceReactiveReactiveDelayQueue<T>
     val dequeueDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_SCRIPT_FILE);
     val dequeueBatchDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_BATCH_SCRIPT_FILE);
     val commands = redisClient.connect().reactive();
-    return new LettuceReactiveReactiveDelayQueue<>(
+    return new LettuceReactiveReactiveMessageDelayQueue<>(
         key, jobQueueKey, metaClazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
@@ -92,18 +92,18 @@ public class LettuceReactiveReactiveDelayQueue<T>
    * @param dequeueBatchDigest 批量出队脚本
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveDelayQueue<T> create(
+  public static <T> LettuceReactiveReactiveMessageDelayQueue<T> create(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> metaClazz,
       @NonNull RedisReactiveCommands<String, String> commands,
       @NonNull String dequeueDigest,
       @NonNull String dequeueBatchDigest) {
-    return new LettuceReactiveReactiveDelayQueue<>(
+    return new LettuceReactiveReactiveMessageDelayQueue<>(
         key, jobQueueKey, metaClazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
-  private LettuceReactiveReactiveDelayQueue(
+  private LettuceReactiveReactiveMessageDelayQueue(
       String key,
       String jobQueueKey,
       Class<T> metaClazz,
@@ -126,7 +126,7 @@ public class LettuceReactiveReactiveDelayQueue<T>
   }
 
   @Override
-  public Mono<T> dequeue(long max) {
+  public Mono<Message<T>> dequeue(long max) {
     return commands
         .<String>evalsha(
             dequeueDigest,
@@ -136,21 +136,22 @@ public class LettuceReactiveReactiveDelayQueue<T>
             jobQueueKey)
         .last()
         // 考虑处理json解析异常
-        .flatMap(readValueParametric(Message.class));
+        .flatMap(this::readValueParametric);
   }
 
   @Override
-  public Flux<T> dequeueBatch(long max) {
+  @SuppressWarnings("unchecked")
+  public Flux<Message<T>> dequeueBatch(long max) {
     return dequeueBatch(max, Long.MAX_VALUE);
   }
 
   @Override
-  public Flux<T> dequeueBatch(long max, long limit) {
+  public Flux<Message<T>> dequeueBatch(long max, long limit) {
     return dequeueBatch(0, max, 0, limit);
   }
 
   @Override
-  public Flux<T> dequeueBatch(long min, long max, long offset, long limit) {
+  public Flux<Message<T>> dequeueBatch(long min, long max, long offset, long limit) {
     return commands
         .<ArrayList<String>>evalsha(
             dequeueBatchDigest,
@@ -162,7 +163,7 @@ public class LettuceReactiveReactiveDelayQueue<T>
             String.valueOf(limit),
             jobQueueKey)
         .flatMap(Flux::fromIterable)
-        .flatMap(readValueParametric(Message.class));
+        .flatMap(this::readValueParametric);
   }
 
   @Override

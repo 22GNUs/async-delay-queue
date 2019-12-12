@@ -9,7 +9,7 @@ import reactor.core.publisher.Mono;
  * @author wangxinhua
  * @since 1.0
  */
-public interface ReactiveQueue<T> {
+public interface ReactiveMessageQueue<T> {
 
   /**
    * 入队
@@ -32,7 +32,7 @@ public interface ReactiveQueue<T> {
    *
    * @return 出队值
    */
-  Mono<T> dequeue();
+  Mono<Message<T>> dequeue();
 
   /**
    * 批量出队
@@ -41,5 +41,5 @@ public interface ReactiveQueue<T> {
    * @param end 结束范围
    * @return 出队集合
    */
-  Flux<T> dequeueBatch(int start, int end);
+  Flux<Message<T>> dequeueBatch(int start, int end);
 }

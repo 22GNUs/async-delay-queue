@@ -3,9 +3,9 @@ package personal.wxh.delayqueue.util;
 import static personal.wxh.delayqueue.util.Exceptions.checked;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.function.Function;
 import lombok.NonNull;
 import lombok.val;
+import personal.wxh.delayqueue.core.Message;
 import reactor.core.publisher.Mono;
 
 /**
@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
  * @author wangxinhua
  * @since 1.0
  */
-public interface ReactiveJsonFormatter<T> {
+public interface ReactiveMessageJsonFormatter<T> {
 
   /**
    * 获取内部的objectMapper
@@ -34,27 +34,13 @@ public interface ReactiveJsonFormatter<T> {
    * 读取json，支持复合类型
    *
    * @param json 目标json
-   * @param parametricClazz 包装类型class
-   * @param <R> 包装类型泛型
    * @return 异步读取结果 | 异常会被包装为 {@code RuntimeException}
    * @see Exceptions#checked(CheckedSupplier)
    */
-  default <R> Mono<T> readValueParametric(@NonNull String json, @NonNull Class<R> parametricClazz) {
+  default Mono<Message<T>> readValueParametric(@NonNull String json) {
     val type =
-        getObjectMapper().getTypeFactory().constructParametricType(parametricClazz, getMetaClazz());
+        getObjectMapper().getTypeFactory().constructParametricType(Message.class, getMetaClazz());
     return Mono.fromSupplier(checked(() -> getObjectMapper().readValue(json, type)));
-  }
-
-  /**
-   * 科里化版本的 {@link this#readValueParametric(String, Class)}
-   *
-   * @param parametricClazz 包装类型class
-   * @param <R> 包装类型泛型
-   * @return 异步读取结果 | 异常会被包装为 {@code RuntimeException}
-   * @see Exceptions#checked(CheckedSupplier)
-   */
-  default <R> Function<String, Mono<T>> readValueParametric(Class<R> parametricClazz) {
-    return json -> readValueParametric(json, parametricClazz);
   }
 
   /**
