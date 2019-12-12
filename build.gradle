@@ -46,9 +46,6 @@ dependencies {
     compile jackSonDatabind
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
 
-    // 打包时建议删除
-    implementation "org.slf4j:slf4j-simple:${slf4jVersion}"
-
     testImplementation "org.slf4j:slf4j-simple:${slf4jVersion}"
     testImplementation 'junit:junit:4.12'
     // https://mvnrepository.com/artifact/io.projectreactor/reactor-test

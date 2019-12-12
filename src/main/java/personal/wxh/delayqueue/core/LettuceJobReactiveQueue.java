@@ -45,23 +45,76 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
   /** json转换 */
   private final ObjectMapper objectMapper;
 
-  @SuppressWarnings("unchecked")
-  public LettuceJobReactiveQueue(String key, String jobQueueKey, RedisClient redisClient) {
-    this(key, jobQueueKey, (Class<T>) Object.class, redisClient);
+  private static final String DEQUEUE_SCRIPT_FILE = "/lua/dequeue-trans.lua";
+  private static final String DEQUEUE_BATCH_SCRIPT_FILE = "/lua/dequeue-trans-batch.lua";
+
+  /**
+   * 外部传入客户端, 内部进行连接初始化, 默认使用object类型不使用泛型
+   *
+   * @param key key
+   * @param jobQueueKey 任务队列key
+   * @param redisClient redis客户端
+   */
+  public static LettuceJobReactiveQueue<Object> connect(
+      @NonNull String key, String jobQueueKey, @NonNull RedisClient redisClient) {
+    return connect(key, jobQueueKey, Object.class, redisClient);
   }
 
-  public LettuceJobReactiveQueue(
+  /**
+   * 外部传入客户端, 内部进行连接初始化
+   *
+   * @param key key
+   * @param jobQueueKey 任务队列key
+   * @param clazz 泛型类型
+   * @param redisClient redis客户端
+   */
+  public static <T> LettuceJobReactiveQueue<T> connect(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> clazz,
       @NonNull RedisClient redisClient) {
+    val dequeueDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_SCRIPT_FILE);
+    val dequeueBatchDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_BATCH_SCRIPT_FILE);
+    val commands = redisClient.connect().reactive();
+    return new LettuceJobReactiveQueue<>(
+        key, jobQueueKey, clazz, commands, dequeueDigest, dequeueBatchDigest);
+  }
+
+  /**
+   * 外部传入命令及脚本文件, 不进行连接初始化
+   *
+   * @param key key
+   * @param jobQueueKey 任务队列key
+   * @param clazz 泛型类型
+   * @param commands 异步任务命令
+   * @param dequeueDigest 单个出队脚本
+   * @param dequeueBatchDigest 批量出队脚本
+   */
+  public static <T> LettuceJobReactiveQueue<T> create(
+      @NonNull String key,
+      String jobQueueKey,
+      @NonNull Class<T> clazz,
+      @NonNull RedisReactiveCommands<String, String> commands,
+      @NonNull String dequeueDigest,
+      @NonNull String dequeueBatchDigest) {
+    return new LettuceJobReactiveQueue<>(
+        key, jobQueueKey, clazz, commands, dequeueDigest, dequeueBatchDigest);
+  }
+
+  private LettuceJobReactiveQueue(
+      String key,
+      String jobQueueKey,
+      Class<T> clazz,
+      RedisReactiveCommands<String, String> commands,
+      String dequeueDigest,
+      String dequeueBatchDigest) {
     this.key = key;
     this.jobQueueKey = jobQueueKey;
     // 考虑loadScript公用一个连接
-    this.dequeueDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-trans.lua");
-    this.dequeueBatchDigest = ScriptLoader.loadScript(redisClient, "/lua/dequeue-trans-batch.lua");
-    this.commands = redisClient.connect().reactive();
     this.clazz = clazz;
+    this.commands = commands;
+    this.dequeueDigest = dequeueDigest;
+    this.dequeueBatchDigest = dequeueBatchDigest;
     this.objectMapper = GlobalObjectMapper.getInstance();
   }
 

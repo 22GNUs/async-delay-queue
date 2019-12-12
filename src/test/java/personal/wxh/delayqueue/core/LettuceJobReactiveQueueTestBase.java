@@ -25,7 +25,7 @@ public class LettuceJobReactiveQueueTestBase extends BaseRedisTest {
   public void init() {
     // call super first
     super.init();
-    this.testQueue = new LettuceJobReactiveQueue<>("testQueue", "testJobQueue", client);
+    this.testQueue = LettuceJobReactiveQueue.connect("testQueue", "testJobQueue", client);
   }
 
   @Test

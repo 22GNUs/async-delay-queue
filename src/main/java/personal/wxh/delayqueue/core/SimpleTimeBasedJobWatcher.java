@@ -2,13 +2,14 @@ package personal.wxh.delayqueue.core;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 
 /**
  * 持续监听队列, 搬运数据到jobQueue
@@ -68,23 +69,5 @@ public class SimpleTimeBasedJobWatcher<T> {
       scheduledFuture.cancel(true);
     }
     service.shutdown();
-  }
-
-  public static void main(String[] args) throws InterruptedException {
-    val queue =
-        new LettuceJobReactiveQueue<>(
-            "testQueue",
-            "testJobQueue",
-            RedisClient.create(RedisURI.builder().withHost("127.0.0.1").withPort(6379).build()));
-    new Thread(
-            () -> {
-              for (int i = 0; i < 10; i++) {
-                queue
-                    .enqueue(Message.ofNow(i))
-                    .subscribe(message -> log.info("enqueue message -> {}", message));
-              }
-            })
-        .start();
-    new SimpleTimeBasedJobWatcher<>(5, TimeUnit.SECONDS, queue).watch(30, TimeUnit.SECONDS);
   }
 }
