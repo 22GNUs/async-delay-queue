@@ -19,7 +19,7 @@ import reactor.core.publisher.Mono;
  * @since 1.0
  */
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class LettuceReactiveReactiveMessageMessageQueue<T>
+public class LettuceReactiveReactiveMessageQueue<T>
     implements ReactiveMessageQueue<T>, ReactiveMessageJsonFormatter<T> {
 
   /**
@@ -29,7 +29,7 @@ public class LettuceReactiveReactiveMessageMessageQueue<T>
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static LettuceReactiveReactiveMessageMessageQueue<Object> connect(
+  public static LettuceReactiveReactiveMessageQueue<Object> connect(
       @NonNull String key, @NonNull RedisClient redisClient) {
     return create(key, Object.class, redisClient.connect().reactive());
   }
@@ -42,7 +42,7 @@ public class LettuceReactiveReactiveMessageMessageQueue<T>
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveMessageMessageQueue<T> connect(
+  public static <T> LettuceReactiveReactiveMessageQueue<T> connect(
       @NonNull String key, @NonNull Class<T> metaClass, @NonNull RedisClient redisClient) {
     return create(key, metaClass, redisClient.connect().reactive());
   }
@@ -55,11 +55,11 @@ public class LettuceReactiveReactiveMessageMessageQueue<T>
    * @param commands 异步任务命令
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveMessageMessageQueue<T> create(
+  public static <T> LettuceReactiveReactiveMessageQueue<T> create(
       @NonNull String key,
       @NonNull Class<T> metaClass,
       @NonNull RedisReactiveCommands<String, String> commands) {
-    return new LettuceReactiveReactiveMessageMessageQueue<>(
+    return new LettuceReactiveReactiveMessageQueue<>(
         key, metaClass, commands, GlobalObjectMapper.getInstance());
   }
 
