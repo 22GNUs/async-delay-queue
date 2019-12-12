@@ -16,7 +16,7 @@ import reactor.test.StepVerifier;
  * @since 1.0
  */
 @Slf4j
-public class LettuceReactiveDelayReactiveMessageQueueTestBase extends BaseRedisTest {
+public class LettuceReactiveDelayReactiveMessageQueueTest extends BaseRedisTest {
 
   private LettuceReactiveReactiveMessageDelayQueue<Object> testQueue;
 

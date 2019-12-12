@@ -1,31 +1,78 @@
 package personal.wxh.delayqueue.core;
 
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.junit.Assert;
 import org.junit.Test;
 import personal.wxh.delayqueue.BaseRedisTest;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 
 /**
  * @author wangxinhua
  * @since 1.0
  */
+@Slf4j
 public class LettuceReactiveReactiveMessageQueueTest extends BaseRedisTest {
 
   private LettuceReactiveReactiveMessageMessageQueue<Object> testQueue;
 
   public void init() {
     super.init();
-    LettuceReactiveReactiveMessageMessageQueue<Object> testJobQueue =
-        LettuceReactiveReactiveMessageMessageQueue.connect("testJobQueue", client);
+    testQueue = LettuceReactiveReactiveMessageMessageQueue.connect("testJobQueue", client);
   }
 
   @Test
-  public void enqueue() {}
+  public void enqueue() {
+    val number = 10;
+    val step =
+        testQueue
+            .delete()
+            .thenMany(Flux.range(0, number).map(Message::ofNow).flatMap(testQueue::enqueue));
+    StepVerifier.create(step).expectNextCount(number).then(testQueue::syncDelete).verifyComplete();
+  }
 
   @Test
-  public void enqueueBatch() {}
+  public void enqueueBatch() {
+    val number = 10;
+    val lst = IntStream.range(0, number).mapToObj(Message::ofNow).collect(Collectors.toList());
+    val step = testQueue.delete().thenMany(testQueue.enqueueBatch(lst));
+    StepVerifier.create(step).expectNextCount(number).then(testQueue::syncDelete).verifyComplete();
+  }
 
   @Test
-  public void dequeue() {}
+  public void dequeue() {
+    val number = 10;
+    val step =
+        testQueue
+            .delete()
+            .thenMany(Flux.range(0, number).map(Message::ofNow).flatMap(testQueue::enqueue))
+            .thenMany(Flux.range(0, number).flatMap(__ -> testQueue.dequeue()));
+    StepVerifier.create(step)
+        .recordWith(ArrayList::new)
+        .expectNextCount(number)
+        .then(testQueue::syncDelete)
+        .consumeRecordedWith(messages -> Assert.assertEquals(messages.size(), number))
+        .verifyComplete();
+  }
 
   @Test
-  public void dequeueBatch() {}
+  public void dequeueBatch() {
+    val number = 10;
+    val lst = IntStream.range(0, number).mapToObj(Message::ofNow).collect(Collectors.toList());
+    val step =
+        testQueue
+            .delete()
+            .thenMany(testQueue.enqueueBatch(lst))
+            .thenMany(testQueue.dequeueBatch(0, number));
+    StepVerifier.create(step)
+        .recordWith(ArrayList::new)
+        .expectNextCount(number)
+        .then(testQueue::syncDelete)
+        .consumeRecordedWith(messages -> Assert.assertEquals(messages.size(), number))
+        .verifyComplete();
+  }
 }

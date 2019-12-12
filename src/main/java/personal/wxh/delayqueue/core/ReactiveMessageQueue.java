@@ -1,6 +1,5 @@
 package personal.wxh.delayqueue.core;
 
-import java.util.List;
 import lombok.NonNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,7 +16,7 @@ public interface ReactiveMessageQueue<T> {
    * @param value 入队值
    * @return 成功数量, 数量应该等于1
    */
-  Mono<Long> enqueue(@NonNull T value);
+  Mono<Long> enqueue(@NonNull Message<T> value);
 
   /**
    * 批量入队
@@ -25,7 +24,7 @@ public interface ReactiveMessageQueue<T> {
    * @param values 入队值
    * @return 成功数量, 数量应该等于values长度
    */
-  Flux<Long> enqueueBatch(@NonNull List<T> values);
+  Flux<Long> enqueueBatch(@NonNull Iterable<Message<T>> values);
 
   /**
    * 出队
@@ -42,4 +41,20 @@ public interface ReactiveMessageQueue<T> {
    * @return 出队集合
    */
   Flux<Message<T>> dequeueBatch(int start, int end);
+
+  /**
+   * 清除队列
+   *
+   * @return 清除数量
+   */
+  Mono<Long> delete();
+
+  /**
+   * 同步清除
+   *
+   * @return 清除数量
+   */
+  default Long syncDelete() {
+    return delete().blockOptional().orElse(0L);
+  }
 }

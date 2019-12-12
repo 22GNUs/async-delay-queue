@@ -3,7 +3,6 @@ package personal.wxh.delayqueue.core;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
-import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -81,12 +80,12 @@ public class LettuceReactiveReactiveMessageMessageQueue<T>
   @Getter private final ObjectMapper objectMapper;
 
   @Override
-  public Mono<Long> enqueue(@NonNull T values) {
+  public Mono<Long> enqueue(@NonNull Message<T> values) {
     return writeValue(values).flatMap(json -> commands.rpush(key, json));
   }
 
   @Override
-  public Flux<Long> enqueueBatch(@NonNull List<T> values) {
+  public Flux<Long> enqueueBatch(@NonNull Iterable<Message<T>> values) {
     return Flux.fromIterable(values)
         .flatMap(this::writeValue)
         .flatMap(json -> commands.rpush(key, json));
@@ -100,5 +99,10 @@ public class LettuceReactiveReactiveMessageMessageQueue<T>
   @Override
   public Flux<Message<T>> dequeueBatch(int start, int end) {
     return commands.lrange(key, start, end).flatMap(this::readValueParametric);
+  }
+
+  @Override
+  public Mono<Long> delete() {
+    return commands.del(key);
   }
 }
