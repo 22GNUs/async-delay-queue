@@ -1,15 +1,11 @@
 package personal.wxh.delayqueue.core;
 
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import lombok.val;
-
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 持续监听队列, 搬运数据到jobQueue
@@ -29,7 +25,7 @@ public class SimpleTimeBasedJobWatcher<T> {
 
   private ScheduledFuture<?> scheduledFuture;
 
-  private final LettuceJobReactiveQueue<T> watchQueue;
+  private final LettuceReactiveReactiveDelayQueue<T> watchQueue;
 
   /** 开始监听 */
   public void watch() {

@@ -16,16 +16,16 @@ import reactor.test.StepVerifier;
  * @since 1.0
  */
 @Slf4j
-public class LettuceJobReactiveQueueTestBase extends BaseRedisTest {
+public class LettuceReactiveDelayReactiveQueueTestBase extends BaseRedisTest {
 
-  private LettuceJobReactiveQueue<Object> testQueue;
+  private LettuceReactiveReactiveDelayQueue<Object> testQueue;
 
   @Before
   @Override
   public void init() {
     // call super first
     super.init();
-    this.testQueue = LettuceJobReactiveQueue.connect("testQueue", "testJobQueue", client);
+    this.testQueue = LettuceReactiveReactiveDelayQueue.connect("testQueue", "testJobQueue", client);
   }
 
   @Test

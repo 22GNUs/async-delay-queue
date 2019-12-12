@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * @author wangxinhua
  * @since 1.0
  */
-public interface DelayQueue<T> {
+public interface ReactiveDelayQueue<T> {
 
   /**
    * 把一条消息放入延时队列

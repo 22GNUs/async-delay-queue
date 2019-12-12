@@ -1,7 +1,5 @@
 package personal.wxh.delayqueue.core;
 
-import static personal.wxh.delayqueue.util.Exceptions.checked;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.ScriptOutputType;
@@ -12,6 +10,7 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import personal.wxh.delayqueue.util.GlobalObjectMapper;
+import personal.wxh.delayqueue.util.ReactiveJsonFormatter;
 import personal.wxh.delayqueue.util.ScriptLoader;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -25,13 +24,16 @@ import reactor.core.publisher.Mono;
  * @since 1.0
  */
 @Slf4j
-public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
+public class LettuceReactiveReactiveDelayQueue<T>
+    implements ReactiveDelayQueue<T>, ReactiveJsonFormatter<T> {
 
   @Getter private final String key;
 
   @Getter private final String jobQueueKey;
 
-  private final Class<T> clazz;
+  @Getter private final Class<T> metaClazz;
+
+  @Getter private final ObjectMapper objectMapper;
 
   /** 执行dequeue的脚本sha1, 初始化时加载 */
   private final String dequeueDigest;
@@ -41,9 +43,6 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
 
   /** reactive 命令操作 */
   private final RedisReactiveCommands<String, String> commands;
-
-  /** json转换 */
-  private final ObjectMapper objectMapper;
 
   private static final String DEQUEUE_SCRIPT_FILE = "/lua/dequeue-trans.lua";
   private static final String DEQUEUE_BATCH_SCRIPT_FILE = "/lua/dequeue-trans-batch.lua";
@@ -55,7 +54,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
    * @param jobQueueKey 任务队列key
    * @param redisClient redis客户端
    */
-  public static LettuceJobReactiveQueue<Object> connect(
+  public static LettuceReactiveReactiveDelayQueue<Object> connect(
       @NonNull String key, String jobQueueKey, @NonNull RedisClient redisClient) {
     return connect(key, jobQueueKey, Object.class, redisClient);
   }
@@ -68,7 +67,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
    * @param clazz 泛型类型
    * @param redisClient redis客户端
    */
-  public static <T> LettuceJobReactiveQueue<T> connect(
+  public static <T> LettuceReactiveReactiveDelayQueue<T> connect(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> clazz,
@@ -76,7 +75,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
     val dequeueDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_SCRIPT_FILE);
     val dequeueBatchDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_BATCH_SCRIPT_FILE);
     val commands = redisClient.connect().reactive();
-    return new LettuceJobReactiveQueue<>(
+    return new LettuceReactiveReactiveDelayQueue<>(
         key, jobQueueKey, clazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
@@ -90,28 +89,28 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
    * @param dequeueDigest 单个出队脚本
    * @param dequeueBatchDigest 批量出队脚本
    */
-  public static <T> LettuceJobReactiveQueue<T> create(
+  public static <T> LettuceReactiveReactiveDelayQueue<T> create(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> clazz,
       @NonNull RedisReactiveCommands<String, String> commands,
       @NonNull String dequeueDigest,
       @NonNull String dequeueBatchDigest) {
-    return new LettuceJobReactiveQueue<>(
+    return new LettuceReactiveReactiveDelayQueue<>(
         key, jobQueueKey, clazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
-  private LettuceJobReactiveQueue(
+  private LettuceReactiveReactiveDelayQueue(
       String key,
       String jobQueueKey,
-      Class<T> clazz,
+      Class<T> metaClazz,
       RedisReactiveCommands<String, String> commands,
       String dequeueDigest,
       String dequeueBatchDigest) {
     this.key = key;
     this.jobQueueKey = jobQueueKey;
     // 考虑loadScript公用一个连接
-    this.clazz = clazz;
+    this.metaClazz = metaClazz;
     this.commands = commands;
     this.dequeueDigest = dequeueDigest;
     this.dequeueBatchDigest = dequeueBatchDigest;
@@ -120,8 +119,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
 
   @Override
   public Mono<Long> enqueue(@NonNull Message<T> message) {
-    return Mono.fromSupplier(checked(() -> objectMapper.writeValueAsString(message)))
-        .flatMap(json -> commands.zadd(key, message.getScore(), json));
+    return writeValue(message).flatMap(json -> commands.zadd(key, message.getScore(), json));
   }
 
   @Override
@@ -135,7 +133,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
             jobQueueKey)
         .last()
         // 考虑处理json解析异常
-        .flatMap(this::readValue);
+        .flatMap(readValueParametric(Message.class));
   }
 
   @Override
@@ -161,7 +159,7 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
             String.valueOf(limit),
             jobQueueKey)
         .flatMap(Flux::fromIterable)
-        .flatMap(this::readValue);
+        .flatMap(readValueParametric(Message.class));
   }
 
   @Override
@@ -189,10 +187,5 @@ public class LettuceJobReactiveQueue<T> implements DelayQueue<T> {
 
   public boolean blockClearAll() {
     return clearAll().blockOptional().orElse(false);
-  }
-
-  private Mono<T> readValue(String json) {
-    val type = objectMapper.getTypeFactory().constructParametricType(Message.class, clazz);
-    return Mono.fromSupplier(checked(() -> objectMapper.readValue(json, type)));
   }
 }
