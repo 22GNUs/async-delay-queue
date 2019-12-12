@@ -1,12 +1,11 @@
 package personal.wxh.delayqueue.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import java.util.List;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
+import personal.wxh.delayqueue.util.GlobalObjectMapper;
 import personal.wxh.delayqueue.util.ReactiveJsonFormatter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -19,6 +18,82 @@ import reactor.core.publisher.Mono;
  */
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class LettuceReactiveReactiveQueue<T> implements ReactiveQueue<T>, ReactiveJsonFormatter<T> {
+
+  /**
+   * 外部传入客户端, 内部进行连接初始化
+   *
+   * @param key key
+   * @param redisClient redis客户端
+   * @return 队列实例
+   */
+  public static LettuceReactiveReactiveQueue<Object> connect(
+      @NonNull String key, @NonNull RedisClient redisClient) {
+    return connect(key, Object.class, redisClient, null);
+  }
+
+  /**
+   * 外部传入客户端, 内部进行连接初始化
+   *
+   * @param key key
+   * @param metaClass 泛型类型
+   * @param redisClient redis客户端
+   * @return 队列实例
+   */
+  public static <T> LettuceReactiveReactiveQueue<T> connect(
+      @NonNull String key, @NonNull Class<T> metaClass, @NonNull RedisClient redisClient) {
+    return connect(key, metaClass, redisClient, null);
+  }
+
+  /**
+   * 外部传入客户端, 内部进行连接初始化
+   *
+   * @param key key
+   * @param metaClass 泛型类型
+   * @param redisClient redis客户端
+   * @param objectMapper 序列化对象
+   * @return 队列实例
+   */
+  public static <T> LettuceReactiveReactiveQueue<T> connect(
+      @NonNull String key,
+      @NonNull Class<T> metaClass,
+      @NonNull RedisClient redisClient,
+      ObjectMapper objectMapper) {
+    val commends = redisClient.connect().reactive();
+    return create(key, metaClass, commends, objectMapper);
+  }
+
+  /**
+   * 外部传入命令, 不进行连接初始化
+   *
+   * @param key key
+   * @param metaClass 泛型类型
+   * @param commands 异步任务命令
+   * @return 队列实例
+   */
+  public static <T> LettuceReactiveReactiveQueue<T> create(
+      @NonNull String key,
+      @NonNull Class<T> metaClass,
+      @NonNull RedisReactiveCommands<String, String> commands) {
+    return new LettuceReactiveReactiveQueue<>(key, metaClass, commands, null);
+  }
+
+  /**
+   * 外部传入命令, 不进行连接初始化
+   *
+   * @param key key
+   * @param metaClass 泛型类型
+   * @param commands 异步任务命令
+   * @param objectMapper 序列化对象
+   * @return 队列实例
+   */
+  public static <T> LettuceReactiveReactiveQueue<T> create(
+      @NonNull String key,
+      @NonNull Class<T> metaClass,
+      @NonNull RedisReactiveCommands<String, String> commands,
+      ObjectMapper objectMapper) {
+    objectMapper = objectMapper == null ? GlobalObjectMapper.getInstance() : objectMapper;
+    return new LettuceReactiveReactiveQueue<>(key, metaClass, commands, objectMapper);
+  }
 
   /** redis队列key */
   private final String key;

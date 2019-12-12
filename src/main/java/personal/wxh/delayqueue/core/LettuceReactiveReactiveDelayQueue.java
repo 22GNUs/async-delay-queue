@@ -53,6 +53,7 @@ public class LettuceReactiveReactiveDelayQueue<T>
    * @param key key
    * @param jobQueueKey 任务队列key
    * @param redisClient redis客户端
+   * @return 队列实例
    */
   public static LettuceReactiveReactiveDelayQueue<Object> connect(
       @NonNull String key, String jobQueueKey, @NonNull RedisClient redisClient) {
@@ -64,19 +65,20 @@ public class LettuceReactiveReactiveDelayQueue<T>
    *
    * @param key key
    * @param jobQueueKey 任务队列key
-   * @param clazz 泛型类型
+   * @param metaClazz 泛型类型
    * @param redisClient redis客户端
+   * @return 队列实例
    */
   public static <T> LettuceReactiveReactiveDelayQueue<T> connect(
       @NonNull String key,
       String jobQueueKey,
-      @NonNull Class<T> clazz,
+      @NonNull Class<T> metaClazz,
       @NonNull RedisClient redisClient) {
     val dequeueDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_SCRIPT_FILE);
     val dequeueBatchDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_BATCH_SCRIPT_FILE);
     val commands = redisClient.connect().reactive();
     return new LettuceReactiveReactiveDelayQueue<>(
-        key, jobQueueKey, clazz, commands, dequeueDigest, dequeueBatchDigest);
+        key, jobQueueKey, metaClazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
   /**
@@ -84,20 +86,21 @@ public class LettuceReactiveReactiveDelayQueue<T>
    *
    * @param key key
    * @param jobQueueKey 任务队列key
-   * @param clazz 泛型类型
+   * @param metaClazz 泛型类型
    * @param commands 异步任务命令
    * @param dequeueDigest 单个出队脚本
    * @param dequeueBatchDigest 批量出队脚本
+   * @return 队列实例
    */
   public static <T> LettuceReactiveReactiveDelayQueue<T> create(
       @NonNull String key,
       String jobQueueKey,
-      @NonNull Class<T> clazz,
+      @NonNull Class<T> metaClazz,
       @NonNull RedisReactiveCommands<String, String> commands,
       @NonNull String dequeueDigest,
       @NonNull String dequeueBatchDigest) {
     return new LettuceReactiveReactiveDelayQueue<>(
-        key, jobQueueKey, clazz, commands, dequeueDigest, dequeueBatchDigest);
+        key, jobQueueKey, metaClazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
   private LettuceReactiveReactiveDelayQueue(
