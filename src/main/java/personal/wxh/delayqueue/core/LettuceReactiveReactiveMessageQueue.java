@@ -12,7 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * 基于list实现的队列, 配合 {@link LettuceReactiveReactiveMessageDelayQueue <T>} 使用
+ * 基于lettuce实现的队列, 配合 {@link LettuceReactiveReactiveMessageDelayQueue <T>} 使用
  *
  * @author wangxinhua
  * @since 1.0
