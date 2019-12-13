@@ -19,6 +19,14 @@ public interface ReactiveDelayQueue<T> {
   Mono<Long> enqueue(@NonNull Message<T> message);
 
   /**
+   * 批量入队
+   *
+   * @param messages 入队值
+   * @return 成功数量, 数量应该等于values长度
+   */
+  Mono<Long> enqueueBatch(@NonNull Iterable<Message<T>> messages);
+
+  /**
    * 异步出队列
    *
    * @param max 最大值

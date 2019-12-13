@@ -40,7 +40,10 @@ public class LettuceReactiveReactiveMessageQueueTest extends BaseRedisTest {
     val number = 10;
     val lst = IntStream.range(0, number).mapToObj(Message::ofNow).collect(Collectors.toList());
     val step = testQueue.delete().thenMany(testQueue.enqueueBatch(lst));
-    StepVerifier.create(step).expectNextCount(number).then(testQueue::syncDelete).verifyComplete();
+    StepVerifier.create(step)
+        .expectNext(Long.valueOf(number))
+        .then(testQueue::syncDelete)
+        .verifyComplete();
   }
 
   @Test

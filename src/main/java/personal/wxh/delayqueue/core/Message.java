@@ -55,7 +55,7 @@ public class Message<T> {
   private @NonNull Serializable id;
 
   /** 排序字段 */
-  private @NonNull Long score;
+  private @NonNull double score;
 
   /** 自定义数据, json解析时处理如果为null则不保存 */
   private T body;

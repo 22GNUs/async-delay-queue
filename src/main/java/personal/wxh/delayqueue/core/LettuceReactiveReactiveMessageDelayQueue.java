@@ -1,7 +1,7 @@
 package personal.wxh.delayqueue.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.ScoredValue;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import java.util.ArrayList;
@@ -24,8 +24,7 @@ import reactor.core.publisher.Mono;
  * @since 1.0
  */
 @Slf4j
-public class LettuceReactiveReactiveMessageDelayQueue<T>
-    implements ReactiveDelayQueue<T>, ReactiveMessageJsonFormatter<T> {
+public class LettuceReactiveReactiveMessageDelayQueue<T> implements ReactiveDelayQueue<T> {
 
   @Getter private final String key;
 
@@ -33,7 +32,7 @@ public class LettuceReactiveReactiveMessageDelayQueue<T>
 
   @Getter private final Class<T> metaClazz;
 
-  @Getter private final ObjectMapper objectMapper;
+  @Getter private final ReactiveMessageJsonFormatter<T> formatter;
 
   /** 执行dequeue的脚本sha1, 初始化时加载 */
   private final String dequeueDigest;
@@ -117,12 +116,29 @@ public class LettuceReactiveReactiveMessageDelayQueue<T>
     this.commands = commands;
     this.dequeueDigest = dequeueDigest;
     this.dequeueBatchDigest = dequeueBatchDigest;
-    this.objectMapper = GlobalObjectMapper.getInstance();
+    this.formatter =
+        new ReactiveMessageJsonFormatter<>(GlobalObjectMapper.getInstance(), metaClazz);
   }
 
   @Override
   public Mono<Long> enqueue(@NonNull Message<T> message) {
-    return writeValue(message).flatMap(json -> commands.zadd(key, message.getScore(), json));
+    return formatter
+        .writeValue(message)
+        .flatMap(json -> commands.zadd(key, message.getScore(), json));
+  }
+
+  @Override
+  public Mono<Long> enqueueBatch(@NonNull Iterable<Message<T>> messages) {
+    return Flux.fromIterable(messages)
+        .flatMap(this::writeAndScored)
+        .collectList()
+        .map(lst -> lst.toArray(new ScoredValue[0]))
+        .flatMap(
+            s -> {
+              @SuppressWarnings("unchecked")
+              val checked = (ScoredValue<String>[]) s;
+              return commands.zadd(key, checked);
+            });
   }
 
   @Override
@@ -136,11 +152,10 @@ public class LettuceReactiveReactiveMessageDelayQueue<T>
             jobQueueKey)
         .last()
         // 考虑处理json解析异常
-        .flatMap(this::readValueParametric);
+        .flatMap(formatter::readValue);
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Flux<Message<T>> dequeueBatch(long max) {
     return dequeueBatch(max, Long.MAX_VALUE);
   }
@@ -163,7 +178,7 @@ public class LettuceReactiveReactiveMessageDelayQueue<T>
             String.valueOf(limit),
             jobQueueKey)
         .flatMap(Flux::fromIterable)
-        .flatMap(this::readValueParametric);
+        .flatMap(formatter::readValue);
   }
 
   @Override
@@ -191,5 +206,15 @@ public class LettuceReactiveReactiveMessageDelayQueue<T>
 
   public boolean blockClearAll() {
     return clearAll().blockOptional().orElse(false);
+  }
+
+  /**
+   * 写入json, 同时转换为scoredValue
+   *
+   * @param message 消息对象
+   * @return scoredValue
+   */
+  private Mono<ScoredValue<String>> writeAndScored(Message<T> message) {
+    return formatter.writeValue(message).map(json -> ScoredValue.just(message.getScore(), json));
   }
 }

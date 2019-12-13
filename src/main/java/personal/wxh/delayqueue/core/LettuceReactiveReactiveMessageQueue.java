@@ -1,12 +1,11 @@
 package personal.wxh.delayqueue.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.ScoredValue;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.val;
 import personal.wxh.delayqueue.util.GlobalObjectMapper;
 import personal.wxh.delayqueue.util.ReactiveMessageJsonFormatter;
 import reactor.core.publisher.Flux;
@@ -18,9 +17,7 @@ import reactor.core.publisher.Mono;
  * @author wangxinhua
  * @since 1.0
  */
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class LettuceReactiveReactiveMessageQueue<T>
-    implements ReactiveMessageQueue<T>, ReactiveMessageJsonFormatter<T> {
+public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQueue<T> {
 
   /**
    * 外部传入客户端, 内部进行连接初始化
@@ -59,8 +56,7 @@ public class LettuceReactiveReactiveMessageQueue<T>
       @NonNull String key,
       @NonNull Class<T> metaClass,
       @NonNull RedisReactiveCommands<String, String> commands) {
-    return new LettuceReactiveReactiveMessageQueue<>(
-        key, metaClass, commands, GlobalObjectMapper.getInstance());
+    return new LettuceReactiveReactiveMessageQueue<>(key, metaClass, commands);
   }
 
   /** redis队列key */
@@ -77,32 +73,58 @@ public class LettuceReactiveReactiveMessageQueue<T>
    *
    * @apiNote 如果跟 {@link LettuceReactiveReactiveMessageDelayQueue <T>} 配合使用建议使用同一个
    */
-  @Getter private final ObjectMapper objectMapper;
+  @Getter private final ReactiveMessageJsonFormatter<T> formatter;
 
-  @Override
-  public Mono<Long> enqueue(@NonNull Message<T> values) {
-    return writeValue(values).flatMap(json -> commands.rpush(key, json));
+  public LettuceReactiveReactiveMessageQueue(
+      String key, Class<T> metaClazz, RedisReactiveCommands<String, String> commands) {
+    this.key = key;
+    this.metaClazz = metaClazz;
+    this.commands = commands;
+    this.formatter =
+        new ReactiveMessageJsonFormatter<>(GlobalObjectMapper.getInstance(), metaClazz);
   }
 
   @Override
-  public Flux<Long> enqueueBatch(@NonNull Iterable<Message<T>> values) {
+  public Mono<Long> enqueue(@NonNull Message<T> values) {
+    return formatter.writeValue(values).flatMap(json -> commands.rpush(key, json));
+  }
+
+  @Override
+  public Mono<Long> enqueueBatch(@NonNull Iterable<Message<T>> values) {
     return Flux.fromIterable(values)
-        .flatMap(this::writeValue)
-        .flatMap(json -> commands.rpush(key, json));
+        .flatMap(this::writeAndScored)
+        .collectList()
+        .map(lst -> lst.toArray(new ScoredValue[0]))
+        .flatMap(
+            s -> {
+              @SuppressWarnings("unchecked")
+              val checked = (ScoredValue<String>[]) s;
+              return commands.zadd(key, checked);
+            });
   }
 
   @Override
   public Mono<Message<T>> dequeue() {
-    return commands.lpop(key).flatMap(this::readValueParametric);
+    return commands.lpop(key).flatMap(formatter::readValue);
   }
 
   @Override
   public Flux<Message<T>> dequeueBatch(int start, int end) {
-    return commands.lrange(key, start, end).flatMap(this::readValueParametric);
+    return commands.lrange(key, start, end).flatMap(formatter::readValue);
   }
 
   @Override
   public Mono<Long> delete() {
     return commands.del(key);
+  }
+
+  /**
+   * 写入json, 同时转换为scoredValue
+   *
+   * @param message 消息对象
+   * @return scoredValue
+   */
+  private Mono<ScoredValue<String>> writeAndScored(Message<T> message) {
+    return formatter.writeValue(message).map(json -> ScoredValue.just(message.getScore(), json));
   }
 }

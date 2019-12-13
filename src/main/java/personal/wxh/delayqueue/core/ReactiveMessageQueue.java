@@ -24,7 +24,7 @@ public interface ReactiveMessageQueue<T> {
    * @param values 入队值
    * @return 成功数量, 数量应该等于values长度
    */
-  Flux<Long> enqueueBatch(@NonNull Iterable<Message<T>> values);
+  Mono<Long> enqueueBatch(@NonNull Iterable<Message<T>> values);
 
   /**
    * 出队
