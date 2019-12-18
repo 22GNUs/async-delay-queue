@@ -82,4 +82,11 @@ public class LettuceReactiveMessageDelayQueueTest extends BaseRedisTest {
         .then(testQueue::blockClearAll)
         .verifyComplete();
   }
+
+  @Test
+  public void dequeueOnEmpty() {
+    val number = 10;
+    val step = testQueue.delete().thenMany(testQueue.dequeueBatch(0, number));
+    StepVerifier.create(step).expectNextCount(0).then(testQueue::blockClearAll).verifyComplete();
+  }
 }

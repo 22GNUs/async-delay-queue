@@ -9,5 +9,5 @@ if #message > 0 then
     redis.call('RPUSH', job_list_key, m)
     return message
 else
-    return nil
+    return {}
 end

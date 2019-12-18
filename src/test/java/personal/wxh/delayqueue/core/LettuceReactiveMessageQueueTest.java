@@ -78,4 +78,11 @@ public class LettuceReactiveMessageQueueTest extends BaseRedisTest {
         .consumeRecordedWith(messages -> Assert.assertEquals(messages.size(), number))
         .verifyComplete();
   }
+
+  @Test
+  public void dequeueOnEmpty() {
+    val number = 10;
+    val step = testQueue.delete().thenMany(testQueue.dequeueBatch(0, number));
+    StepVerifier.create(step).expectNextCount(0).then(testQueue::syncDelete).verifyComplete();
+  }
 }

@@ -7,5 +7,5 @@ if #message > 0 then
     redis.call('ZREM', zset_key, m)
     return message
 else
-    return nil
+    return {}
 end

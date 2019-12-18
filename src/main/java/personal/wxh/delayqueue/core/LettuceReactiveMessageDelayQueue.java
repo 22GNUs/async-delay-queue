@@ -4,7 +4,7 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.ScoredValue;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
-import java.util.ArrayList;
+import java.util.Collection;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -168,7 +168,7 @@ public class LettuceReactiveMessageDelayQueue<T> implements ReactiveDelayQueue<T
   @Override
   public Flux<Message<T>> dequeueBatch(long min, long max, long offset, long limit) {
     return commands
-        .<ArrayList<String>>evalsha(
+        .<Collection<String>>evalsha(
             dequeueBatchDigest,
             ScriptOutputType.MULTI,
             new String[] {key},

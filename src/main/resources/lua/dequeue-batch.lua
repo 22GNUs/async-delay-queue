@@ -18,4 +18,4 @@ if status ~= nil and status == 'ok' then
         end
     end
 end
-return nil
+return {}
