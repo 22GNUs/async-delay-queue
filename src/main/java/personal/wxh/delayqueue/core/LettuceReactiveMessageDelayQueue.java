@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono;
  * @since 1.0
  */
 @Slf4j
-public class LettuceReactiveReactiveMessageDelayQueue<T> implements ReactiveDelayQueue<T> {
+public class LettuceReactiveMessageDelayQueue<T> implements ReactiveDelayQueue<T> {
 
   @Getter private final String key;
 
@@ -54,7 +54,7 @@ public class LettuceReactiveReactiveMessageDelayQueue<T> implements ReactiveDela
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static LettuceReactiveReactiveMessageDelayQueue<Object> connect(
+  public static LettuceReactiveMessageDelayQueue<Object> connect(
       @NonNull String key, String jobQueueKey, @NonNull RedisClient redisClient) {
     return connect(key, jobQueueKey, Object.class, redisClient);
   }
@@ -68,7 +68,7 @@ public class LettuceReactiveReactiveMessageDelayQueue<T> implements ReactiveDela
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveMessageDelayQueue<T> connect(
+  public static <T> LettuceReactiveMessageDelayQueue<T> connect(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> metaClazz,
@@ -76,7 +76,7 @@ public class LettuceReactiveReactiveMessageDelayQueue<T> implements ReactiveDela
     val dequeueDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_SCRIPT_FILE);
     val dequeueBatchDigest = ScriptLoader.loadScript(redisClient, DEQUEUE_BATCH_SCRIPT_FILE);
     val commands = redisClient.connect().reactive();
-    return new LettuceReactiveReactiveMessageDelayQueue<>(
+    return new LettuceReactiveMessageDelayQueue<>(
         key, jobQueueKey, metaClazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
@@ -91,18 +91,18 @@ public class LettuceReactiveReactiveMessageDelayQueue<T> implements ReactiveDela
    * @param dequeueBatchDigest 批量出队脚本
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveMessageDelayQueue<T> create(
+  public static <T> LettuceReactiveMessageDelayQueue<T> create(
       @NonNull String key,
       String jobQueueKey,
       @NonNull Class<T> metaClazz,
       @NonNull RedisReactiveCommands<String, String> commands,
       @NonNull String dequeueDigest,
       @NonNull String dequeueBatchDigest) {
-    return new LettuceReactiveReactiveMessageDelayQueue<>(
+    return new LettuceReactiveMessageDelayQueue<>(
         key, jobQueueKey, metaClazz, commands, dequeueDigest, dequeueBatchDigest);
   }
 
-  private LettuceReactiveReactiveMessageDelayQueue(
+  private LettuceReactiveMessageDelayQueue(
       String key,
       String jobQueueKey,
       Class<T> metaClazz,

@@ -25,7 +25,7 @@ public class SimpleTimeBasedJobWatcher<T> {
 
   private ScheduledFuture<?> scheduledFuture;
 
-  private final LettuceReactiveReactiveMessageDelayQueue<T> watchQueue;
+  private final LettuceReactiveMessageDelayQueue<T> watchQueue;
 
   /** 开始监听 */
   public void watch() {

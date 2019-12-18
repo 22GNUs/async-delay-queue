@@ -1,7 +1,12 @@
 package personal.wxh.delayqueue.core;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NonNull;
 
 /**
  * 消息对象
@@ -10,9 +15,7 @@ import lombok.*;
  * @since 1.0
  */
 @Data
-@NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class Message<T> {
 
   /**
@@ -23,8 +26,8 @@ public class Message<T> {
    * @param <T> 泛型类型, ignored
    * @return 空的message
    */
-  public static <T> Message<T> of(Serializable id, Long score) {
-    return new Message<>(id, score);
+  public static <T> Message<T> of(@NonNull Serializable id, @NonNull Long score) {
+    return of(id, score, null);
   }
 
   /**
@@ -34,8 +37,8 @@ public class Message<T> {
    * @param <T> 泛型类型, ignored
    * @return 空的message
    */
-  public static <T> Message<T> ofNow(Serializable id) {
-    return new Message<>(id, System.currentTimeMillis());
+  public static <T> Message<T> ofNow(@NonNull Serializable id) {
+    return new Message<>(id, System.currentTimeMillis(), null);
   }
 
   /**
@@ -47,15 +50,19 @@ public class Message<T> {
    * @param <T> body 泛型类型
    * @return 包含自定义信息的message对象
    */
-  public static <T> Message<T> withBody(Serializable id, Long score, @NonNull T body) {
+  @JsonCreator
+  public static <T> Message<T> of(
+      @JsonProperty("id") @NonNull Serializable id,
+      @JsonProperty("score") @NonNull Long score,
+      @JsonProperty("body") T body) {
     return new Message<>(id, score, body);
   }
 
   /** 唯一id */
-  private @NonNull Serializable id;
+  private Serializable id;
 
   /** 排序字段 */
-  private @NonNull double score;
+  private double score;
 
   /** 自定义数据, json解析时处理如果为null则不保存 */
   private T body;

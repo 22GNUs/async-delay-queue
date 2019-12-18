@@ -5,19 +5,18 @@ import io.lettuce.core.ScoredValue;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.val;
 import personal.wxh.delayqueue.util.GlobalObjectMapper;
 import personal.wxh.delayqueue.util.ReactiveMessageJsonFormatter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * 基于lettuce实现的队列, 配合 {@link LettuceReactiveReactiveMessageDelayQueue <T>} 使用
+ * 基于lettuce实现的队列, 配合 {@link LettuceReactiveMessageDelayQueue <T>} 使用
  *
  * @author wangxinhua
  * @since 1.0
  */
-public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQueue<T> {
+public class LettuceReactiveMessageQueue<T> implements ReactiveMessageQueue<T> {
 
   /**
    * 外部传入客户端, 内部进行连接初始化
@@ -26,7 +25,7 @@ public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQu
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static LettuceReactiveReactiveMessageQueue<Object> connect(
+  public static LettuceReactiveMessageQueue<Object> connect(
       @NonNull String key, @NonNull RedisClient redisClient) {
     return create(key, Object.class, redisClient.connect().reactive());
   }
@@ -39,7 +38,7 @@ public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQu
    * @param redisClient redis客户端
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveMessageQueue<T> connect(
+  public static <T> LettuceReactiveMessageQueue<T> connect(
       @NonNull String key, @NonNull Class<T> metaClass, @NonNull RedisClient redisClient) {
     return create(key, metaClass, redisClient.connect().reactive());
   }
@@ -52,11 +51,11 @@ public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQu
    * @param commands 异步任务命令
    * @return 队列实例
    */
-  public static <T> LettuceReactiveReactiveMessageQueue<T> create(
+  public static <T> LettuceReactiveMessageQueue<T> create(
       @NonNull String key,
       @NonNull Class<T> metaClass,
       @NonNull RedisReactiveCommands<String, String> commands) {
-    return new LettuceReactiveReactiveMessageQueue<>(key, metaClass, commands);
+    return new LettuceReactiveMessageQueue<>(key, metaClass, commands);
   }
 
   /** redis队列key */
@@ -71,11 +70,11 @@ public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQu
   /**
    * 对象序列化, 可以使用外部的objectMapper
    *
-   * @apiNote 如果跟 {@link LettuceReactiveReactiveMessageDelayQueue <T>} 配合使用建议使用同一个
+   * @apiNote 如果跟 {@link LettuceReactiveMessageDelayQueue <T>} 配合使用建议使用同一个
    */
   @Getter private final ReactiveMessageJsonFormatter<T> formatter;
 
-  public LettuceReactiveReactiveMessageQueue(
+  public LettuceReactiveMessageQueue(
       String key, Class<T> metaClazz, RedisReactiveCommands<String, String> commands) {
     this.key = key;
     this.metaClazz = metaClazz;
@@ -92,15 +91,9 @@ public class LettuceReactiveReactiveMessageQueue<T> implements ReactiveMessageQu
   @Override
   public Mono<Long> enqueueBatch(@NonNull Iterable<Message<T>> values) {
     return Flux.fromIterable(values)
-        .flatMap(this::writeAndScored)
+        .flatMap(formatter::writeValue)
         .collectList()
-        .map(lst -> lst.toArray(new ScoredValue[0]))
-        .flatMap(
-            s -> {
-              @SuppressWarnings("unchecked")
-              val checked = (ScoredValue<String>[]) s;
-              return commands.zadd(key, checked);
-            });
+        .flatMap(s -> commands.rpush(key, s.toArray(new String[0])));
   }
 
   @Override

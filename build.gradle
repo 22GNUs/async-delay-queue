@@ -14,8 +14,8 @@ ext {
     slf4jVersion = '1.7.25'
     lombok = 'org.projectlombok:lombok:1.18.10'
     lettuce = 'io.lettuce:lettuce-core:5.2.0.RELEASE'
-    jackSonAnnotations = "com.fasterxml.jackson.core:jackson-annotations:2.10.0"
-    jackSonDatabind = "com.fasterxml.jackson.core:jackson-databind:2.10.0"
+    jacksonAnnotations = 'com.fasterxml.jackson.core:jackson-annotations:2.10.0'
+    jacksonDatabind = 'com.fasterxml.jackson.core:jackson-databind:2.10.0'
 }
 
 jar {
@@ -42,8 +42,8 @@ dependencies {
     testCompileOnly lombok
     implementation lettuce
 
-    compile jackSonAnnotations
-    compile jackSonDatabind
+    compile jacksonAnnotations
+    compile jacksonDatabind
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
 
     testImplementation "org.slf4j:slf4j-simple:${slf4jVersion}"
