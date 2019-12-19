@@ -70,11 +70,11 @@ public class LettuceReactiveMessageDelayQueueTest extends BaseRedisTest {
             .delete()
             .thenMany(
                 Flux.range(0, number)
-                    .flatMap(i -> Mono.just(Message.of(i, (long) i)))
+                    .flatMap(i -> Mono.just(Message.of(i, System.currentTimeMillis() - 10)))
                     .flatMap(testQueue::enqueue)
                     .doOnError(e -> log.error("enqueue error -> ", e))
                     .onErrorStop())
-            .thenMany(testQueue.dequeueBatch(number));
+            .thenMany(testQueue.dequeueBatch(System.currentTimeMillis()));
     StepVerifier.create(step)
         .recordWith(ArrayList::new)
         .expectNextCount(number)

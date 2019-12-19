@@ -102,11 +102,6 @@ public class LettuceReactiveMessageQueue<T> implements ReactiveMessageQueue<T> {
   }
 
   @Override
-  public Flux<Message<T>> dequeueBatch(int start, int end) {
-    return commands.lrange(key, start, end).flatMap(formatter::readValue);
-  }
-
-  @Override
   public Mono<Long> delete() {
     return commands.del(key);
   }

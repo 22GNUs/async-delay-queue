@@ -1,7 +1,6 @@
 package personal.wxh.delayqueue.core;
 
 import lombok.NonNull;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -32,15 +31,6 @@ public interface ReactiveMessageQueue<T> {
    * @return 出队值
    */
   Mono<Message<T>> dequeue();
-
-  /**
-   * 批量出队
-   *
-   * @param start 开始范围
-   * @param end 结束范围
-   * @return 出队集合
-   */
-  Flux<Message<T>> dequeueBatch(int start, int end);
 
   /**
    * 清除队列
